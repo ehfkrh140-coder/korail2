@@ -9,11 +9,15 @@ const {
   openMonitoringBrowser,
   attachBrowserPage,
   stopAlarm
+  checkOnce
 } = require('./src/monitor');
 
 const PORT = Number(process.env.PORT || 3001);
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_BODY_SIZE = 1024 * 128;
+
+const PORT = Number(process.env.PORT || 3001);
+const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -25,6 +29,7 @@ const MIME_TYPES = {
 };
 
 function send(response, statusCode, body, contentType = 'application/json; charset=utf-8') {
+function send(response, statusCode, body, contentType) {
   response.writeHead(statusCode, {
     'Content-Type': contentType,
     'Cache-Control': 'no-store'
@@ -97,6 +102,9 @@ async function handleApi(request, response, pathname) {
     if (request.method === 'POST' && pathname === '/api/check-screen-once') {
       const payload = await readJsonBody(request);
       const result = await checkScreenOnce({ refresh: payload.refresh !== false });
+    if (request.method === 'POST' && pathname === '/api/check-once') {
+      const payload = await readJsonBody(request);
+      const result = await checkOnce(payload.conditions || payload.condition || payload);
       sendJson(response, 200, { ok: result.ok, ...result, state: publicState() });
       return;
     }
@@ -109,6 +117,10 @@ async function handleApi(request, response, pathname) {
     if (request.method === 'POST' && pathname === '/api/monitor/start') {
       const payload = await readJsonBody(request);
       const state = await startMonitor({
+    if (request.method === 'POST' && pathname === '/api/monitor/start') {
+      const payload = await readJsonBody(request);
+      const state = await startMonitor({
+        conditions: payload.conditions,
         intervalSeconds: payload.intervalSeconds
       });
       sendJson(response, 200, { ok: true, ...state });
@@ -134,6 +146,7 @@ const server = http.createServer((request, response) => {
     return;
   }
 
+const server = http.createServer((request, response) => {
   if (request.method !== 'GET') {
     send(response, 405, 'Method Not Allowed', 'text/plain; charset=utf-8');
     return;
@@ -159,5 +172,8 @@ const server = http.createServer((request, response) => {
 server.listen(PORT, () => {
   console.log(`KTX 브라우저 화면 기반 잔여석 모니터링 알림판이 실행 중입니다: http://localhost:${PORT}`);
   console.log('KORAIL 서버 직접 호출 없이 연결된 브라우저 화면만 갱신하고 읽습니다.');
+  console.log(`KTX 잔여석 모니터링 알림판이 실행 중입니다: http://localhost:${PORT}`);
+  console.log('자동 로그인/예매/결제 없이 잔여석 조회와 알림까지만 수행합니다.');
+  console.log(`KTX 빈자리 확인 도우미가 실행 중입니다: http://localhost:${PORT}`);
   console.log('종료하려면 터미널에서 Ctrl+C를 누르세요.');
 });
