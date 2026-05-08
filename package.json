@@ -1,0 +1,18 @@
+{
+  "name": "korail-ktx-seat-helper",
+  "version": "2.0.0",
+  "description": "A local browser-screen-based KTX availability monitor that reads the user's open KORAIL page and alerts only when seats appear.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "check": "node --check server.js && node --check src/browserController.js && node --check src/monitor.js && node --check src/notifier.js && node --check src/pageScanner.js && node --check public/app.js",
+    "test:scanner": "node tests/pageScanner.test.js"
+  },
+  "keywords": [
+    "korail",
+    "ktx",
+    "browser-screen-monitor"
+  ],
+  "author": "",
+  "license": "MIT"
+}
