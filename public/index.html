@@ -3,11 +3,26 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KTX 잔여석 모니터링 알림판</title>
     <title>KTX 빈자리 확인 도우미</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <header class="hero">
+      <div>
+        <p class="eyebrow">로컬 잔여석 모니터링 알림판</p>
+        <h1>KTX 잔여석 모니터링 알림판</h1>
+        <p>
+          지정한 날짜·구간·시간대의 KTX 열차를 보수적인 간격으로 실제 조회하고,
+          일반실·특실·입석·자유석 가능 상태가 발견될 때만 화면과 소리로 알립니다.
+        </p>
+      </div>
+      <div class="server-card">
+        <span>서버 상태</span>
+        <strong id="serverStatus">확인 중</strong>
+        <span>현재 시각</span>
+        <strong id="currentTime">--:--:--</strong>
+      </div>
       <p class="eyebrow">수동 확인 보조 프로그램</p>
       <h1>KTX 빈자리 확인 도우미</h1>
       <p>
@@ -23,6 +38,71 @@
       <section class="notice" aria-label="중요 안내">
         <h2>중요 안내</h2>
         <ul>
+          <li>이 프로그램은 자동 예매 봇이 아니며, 자동 로그인·자동 예약·자동 결제·좌석 자동 선택을 하지 않습니다.</li>
+          <li>자동화 탐지 우회, CAPTCHA 우회, CODE -8003 회피 목적의 기능을 넣지 않습니다.</li>
+          <li>잔여석 발견 후 실제 예매와 결제는 사용자가 KORAIL 사이트 또는 코레일톡에서 직접 진행해야 합니다.</li>
+          <li>조회 간격은 최소 20초 이상만 허용하며, 실패해도 즉시 무한 재시도하지 않습니다.</li>
+        </ul>
+        <a class="primary-link" href="https://www.letskorail.com/" target="_blank" rel="noreferrer">KORAIL 예매 사이트 열기</a>
+      </section>
+
+      <section aria-label="조건 입력 영역">
+        <div class="section-heading">
+          <h2>조건 입력 영역</h2>
+          <p>여러 조건을 동시에 조회합니다. 기본값은 현재 필요한 왕복 KTX 조건입니다.</p>
+        </div>
+        <div id="conditions" class="condition-grid"></div>
+      </section>
+
+      <section aria-label="제어 영역">
+        <div class="section-heading">
+          <h2>제어 영역</h2>
+          <p>시간이 되면 알림만 울리는 것이 아니라, 서버가 실제 KORAIL 조회를 수행한 뒤 잔여석이 있을 때만 알립니다.</p>
+        </div>
+        <div class="controls">
+          <label>
+            조회 간격(초)
+            <input id="intervalSeconds" type="number" min="20" step="10" value="60">
+          </label>
+          <button id="startMonitor" type="button">모니터링 시작</button>
+          <button id="stopMonitor" type="button" class="secondary">모니터링 중지</button>
+          <button id="checkOnce" type="button" class="secondary">즉시 1회 조회</button>
+          <button id="stopAlarm" type="button" class="danger">알림음 중지</button>
+          <button id="notifyButton" type="button" class="secondary">브라우저 알림 허용</button>
+        </div>
+        <div id="statusPanel" class="status-panel">
+          <div><span>모니터링</span><strong id="runningStatus">정지</strong></div>
+          <div><span>마지막 조회</span><strong id="lastCheckedAt">-</strong></div>
+          <div><span>다음 조회까지</span><strong id="nextCheckIn">-</strong></div>
+          <div><span>조회 간격</span><strong id="intervalStatus">60초</strong></div>
+          <div><span>조회 성공/실패</span><strong id="checkStatus">-</strong></div>
+          <div><span>마지막 요약</span><strong id="lastSummary">아직 조회 전입니다.</strong></div>
+        </div>
+      </section>
+
+      <section id="alertPanel" class="alert-panel hidden" aria-live="assertive">
+        <h2>잔여석 발견!</h2>
+        <div id="alertDetails"></div>
+        <p>자동 예매는 하지 않습니다. KORAIL 사이트 또는 코레일톡에서 사용자가 직접 예약/결제하세요.</p>
+      </section>
+
+      <section aria-label="결과 표시 영역">
+        <div class="section-heading">
+          <h2>결과 표시 영역</h2>
+          <p>조건별 마지막 조회 시각, 열차 목록, 좌석 상태, 오류 메시지를 따로 표시합니다.</p>
+        </div>
+        <div id="results" class="results-grid"></div>
+      </section>
+
+      <section class="help" aria-label="도움말">
+        <h2>사용 방법</h2>
+        <ol>
+          <li><code>npm run dev</code>를 실행하고 <code>http://localhost:3001</code>에 접속합니다.</li>
+          <li>조건과 승객 수, 시간 범위, 조회 간격을 확인합니다.</li>
+          <li><strong>즉시 1회 조회</strong>로 현재 조건이 조회되는지 확인합니다.</li>
+          <li><strong>모니터링 시작</strong>을 누르면 각 주기마다 실제 KORAIL 조회를 수행합니다.</li>
+          <li>잔여석 발견 알림이 뜨면 사용자가 직접 KORAIL 또는 코레일톡에서 예약합니다.</li>
+        </ol>
           <li>Playwright, Puppeteer, Selenium 같은 자동화 브라우저를 사용하지 않습니다.</li>
           <li>로그인은 일반 Chrome에서 사용자가 직접 해야 합니다.</li>
           <li>분석 결과는 보조 판단이며, 최종 예약 가능 여부는 KORAIL 화면에서 직접 확인해야 합니다.</li>
