@@ -7,11 +7,18 @@
     "dev": "node server.js",
     "check": "node --check server.js && node --check src/korailClient.js && node --check src/monitor.js && node --check src/parser.js && node --check public/app.js",
     "test:parser": "node tests/parser.test.js"
+  "version": "1.0.0",
+  "description": "A local manual helper for checking pasted KORAIL KTX search results.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "check": "node --check server.js && node --check public/app.js"
   },
   "keywords": [
     "korail",
     "ktx",
     "seat-monitor"
+    "seat-helper"
   ],
   "author": "",
   "license": "MIT"
