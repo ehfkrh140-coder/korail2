@@ -1,0 +1,17 @@
+{
+  "name": "korail-ktx-seat-helper",
+  "version": "1.0.0",
+  "description": "A local manual helper for checking pasted KORAIL KTX search results.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "check": "node --check server.js && node --check public/app.js"
+  },
+  "keywords": [
+    "korail",
+    "ktx",
+    "seat-helper"
+  ],
+  "author": "",
+  "license": "MIT"
+}
