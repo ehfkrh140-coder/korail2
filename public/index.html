@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KTX 빈자리 확인 도우미</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="hero">
+      <p class="eyebrow">수동 확인 보조 프로그램</p>
+      <h1>KTX 빈자리 확인 도우미</h1>
+      <p>
+        이 페이지는 자동 예매 프로그램이 아닙니다. KORAIL 접속, 로그인, 조회,
+        예약, 결제는 반드시 사용자가 일반 Chrome 브라우저에서 직접 진행해야 합니다.
+      </p>
+      <a class="primary-link" href="https://www.letskorail.com/" target="_blank" rel="noreferrer">
+        KORAIL 예매 사이트 열기
+      </a>
+    </header>
+
+    <main>
+      <section class="notice" aria-label="중요 안내">
+        <h2>중요 안내</h2>
+        <ul>
+          <li>Playwright, Puppeteer, Selenium 같은 자동화 브라우저를 사용하지 않습니다.</li>
+          <li>로그인은 일반 Chrome에서 사용자가 직접 해야 합니다.</li>
+          <li>분석 결과는 보조 판단이며, 최종 예약 가능 여부는 KORAIL 화면에서 직접 확인해야 합니다.</li>
+          <li>캡차, 보안 확인, 결제 과정을 우회하거나 자동 처리하지 않습니다.</li>
+        </ul>
+      </section>
+
+      <section class="conditions" aria-label="확인할 예매 조건">
+        <h2>고정 확인 조건</h2>
+        <div class="cards">
+          <article class="card">
+            <h3>왕복 1: 광명 → 부산</h3>
+            <dl>
+              <div><dt>날짜</dt><dd>2026년 5월 23일</dd></div>
+              <div><dt>시간</dt><dd>09:00 이상 13:00 이하 출발</dd></div>
+              <div><dt>승객</dt><dd>성인 1명</dd></div>
+              <div><dt>좌석</dt><dd>일반실/특실 상관없음</dd></div>
+              <div><dt>열차</dt><dd>KTX 계열 우선</dd></div>
+            </dl>
+          </article>
+          <article class="card">
+            <h3>왕복 2: 부산 → 광명</h3>
+            <dl>
+              <div><dt>날짜</dt><dd>2026년 5월 25일</dd></div>
+              <div><dt>시간</dt><dd>09:00 이상 15:00 이하 출발</dd></div>
+              <div><dt>승객</dt><dd>성인 1명</dd></div>
+              <div><dt>좌석</dt><dd>일반실/특실 상관없음</dd></div>
+              <div><dt>열차</dt><dd>KTX 계열 우선</dd></div>
+            </dl>
+          </article>
+        </div>
+      </section>
+
+      <section class="timer-panel" aria-label="반복 확인 타이머">
+        <h2>반복 확인 타이머</h2>
+        <p>타이머가 울리면 Chrome의 KORAIL 화면에서 직접 새로고침하거나 조회 버튼을 눌러 주세요.</p>
+        <label for="intervalSeconds">확인 간격(초)</label>
+        <div class="timer-controls">
+          <input id="intervalSeconds" type="number" min="10" step="5" value="60">
+          <button id="startTimer" type="button">타이머 시작</button>
+          <button id="stopTimer" type="button" class="secondary">정지</button>
+          <button id="notifyButton" type="button" class="secondary">브라우저 알림 허용</button>
+        </div>
+        <p class="countdown" id="countdown">타이머가 정지되어 있습니다.</p>
+      </section>
+
+      <section class="analysis-panel" aria-label="조회 결과 분석">
+        <h2>조회 결과 붙여넣기</h2>
+        <p>
+          KORAIL 조회 결과 화면에서 보이는 열차 목록 텍스트를 복사해 붙여넣으세요.
+          가능한 문구와 제외 문구를 함께 보고 후보를 찾습니다.
+        </p>
+        <textarea id="resultText" rows="12" placeholder="예: KTX 101 광명 09:17 부산 11:50 일반실 예약 특실 매진"></textarea>
+        <div class="analysis-actions">
+          <button id="analyzeButton" type="button">빈자리 분석</button>
+          <button id="clearButton" type="button" class="secondary">내용 지우기</button>
+        </div>
+        <div id="analysisSummary" class="summary" role="status">아직 분석 전입니다.</div>
+        <div id="candidateList" class="candidate-list" aria-live="polite"></div>
+      </section>
+
+      <section class="help" aria-label="사용 방법과 문제 해결">
+        <h2>사용 방법</h2>
+        <ol>
+          <li>터미널에서 <code>npm run dev</code>를 실행합니다.</li>
+          <li>이 페이지가 열리지 않으면 Chrome에서 <code>http://localhost:3001</code>에 접속합니다.</li>
+          <li>일반 Chrome에서 KORAIL 사이트를 열고 직접 로그인합니다.</li>
+          <li>위 고정 조건으로 사용자가 직접 열차를 조회합니다.</li>
+          <li>타이머가 울릴 때마다 직접 새로고침/조회 후 결과를 복사해 붙여넣습니다.</li>
+          <li>후보가 보이면 KORAIL 화면에서 직접 예약과 결제를 진행합니다.</li>
+        </ol>
+
+        <h2>자주 발생하는 문제</h2>
+        <details>
+          <summary>브라우저 알림이 뜨지 않아요.</summary>
+          <p>알림 허용 버튼을 누르고 Chrome 주소창 왼쪽의 사이트 설정에서 알림을 허용했는지 확인하세요.</p>
+        </details>
+        <details>
+          <summary>후보가 없다고 나오지만 KORAIL에는 버튼이 보여요.</summary>
+          <p>KORAIL 화면 텍스트 구조가 바뀌었을 수 있습니다. 분석은 보조 기능이므로 실제 화면 판단을 우선하세요.</p>
+        </details>
+        <details>
+          <summary>터미널에서 포트 오류가 나요.</summary>
+          <p>이미 3001번 포트를 사용하는 프로그램이 있을 수 있습니다. 종료하거나 <code>PORT=3002 npm run dev</code>로 실행하세요.</p>
+        </details>
+        <details>
+          <summary>프로그램을 종료하려면 어떻게 하나요?</summary>
+          <p>터미널에서 <kbd>Ctrl</kbd> + <kbd>C</kbd>를 누르면 로컬 서버가 종료됩니다.</p>
+        </details>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
