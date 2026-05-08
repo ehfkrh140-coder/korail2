@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KTX 브라우저 화면 기반 잔여석 모니터링</title>
     <title>KTX 잔여석 모니터링 알림판</title>
     <title>KTX 빈자리 확인 도우미</title>
     <link rel="stylesheet" href="/styles.css">
@@ -10,6 +11,21 @@
   <body>
     <header class="hero">
       <div>
+        <p class="eyebrow">KORAIL 직접 호출 없음 · 브라우저 화면 기반</p>
+        <h1>KTX 잔여석 모니터링 알림판</h1>
+        <p>
+          사용자가 직접 열어둔 코레일 예매 화면을 일정 간격으로 조회/새로고침하고,
+          화면 DOM에 표시된 열차 목록에서 잔여석 가능 상태가 감지될 때만 알립니다.
+        </p>
+      </div>
+      <div class="server-card">
+        <span>로컬 서버</span>
+        <strong id="serverStatus">확인 중</strong>
+        <span>연결된 브라우저</span>
+        <strong id="browserStatus">미연결</strong>
+        <span>현재 시각</span>
+        <strong id="currentTime">--:--:--</strong>
+      </div>
         <p class="eyebrow">로컬 잔여석 모니터링 알림판</p>
         <h1>KTX 잔여석 모니터링 알림판</h1>
         <p>
@@ -38,6 +54,25 @@
       <section class="notice" aria-label="중요 안내">
         <h2>중요 안내</h2>
         <ul>
+          <li>이 앱은 KORAIL API, 내부 HTML 엔드포인트, hidden form 조합 요청을 직접 호출하지 않습니다.</li>
+          <li>사용자가 직접 브라우저에서 KORAIL 접속, 로그인, 조건 입력, 최초 조회를 완료해야 합니다.</li>
+          <li>프로그램은 연결된 브라우저 화면의 조회/다시조회/새로고침과 DOM 읽기만 수행합니다.</li>
+          <li>자동 로그인, 자동 예매, 예약 버튼 클릭, 결제, 좌석 선택, CAPTCHA/탐지 우회는 하지 않습니다.</li>
+          <li>전부 매진, 예약대기만 있음, 로딩 중, 열차 목록을 읽지 못한 경우에는 알림을 울리지 않습니다.</li>
+        </ul>
+      </section>
+
+      <section aria-label="브라우저 연결">
+        <div class="section-heading">
+          <h2>1. 브라우저 화면 연결</h2>
+          <p>브라우저를 열고 사용자가 직접 코레일 예매 페이지에서 조건을 입력한 뒤 열차 목록 화면까지 이동하세요.</p>
+        </div>
+        <div class="controls">
+          <button id="openBrowser" type="button">브라우저 열기</button>
+          <button id="attachBrowser" type="button" class="secondary">현재 코레일 화면 연결</button>
+          <button id="notifyButton" type="button" class="secondary">브라우저 알림 허용</button>
+        </div>
+        <p class="hint">연결 대상 조건 예: 광명 → 부산 / 2026-05-23 / 09:00~13:00, 부산 → 광명 / 2026-05-24 / 원하는 시간대. 조건 입력은 코레일 화면에서 사용자가 직접 합니다.</p>
           <li>이 프로그램은 자동 예매 봇이 아니며, 자동 로그인·자동 예약·자동 결제·좌석 자동 선택을 하지 않습니다.</li>
           <li>자동화 탐지 우회, CAPTCHA 우회, CODE -8003 회피 목적의 기능을 넣지 않습니다.</li>
           <li>잔여석 발견 후 실제 예매와 결제는 사용자가 KORAIL 사이트 또는 코레일톡에서 직접 진행해야 합니다.</li>
@@ -56,6 +91,28 @@
 
       <section aria-label="제어 영역">
         <div class="section-heading">
+          <h2>2. 모니터링 제어</h2>
+          <p>시간이 되면 알림만 울리지 않습니다. 현재 브라우저 화면을 갱신하고 DOM을 읽은 뒤 잔여석이 있을 때만 알립니다.</p>
+        </div>
+        <div class="controls">
+          <label>
+            갱신 간격(초)
+            <input id="intervalSeconds" type="number" min="20" step="10" value="30">
+          </label>
+          <button id="startMonitor" type="button">모니터링 시작</button>
+          <button id="stopMonitor" type="button" class="secondary">모니터링 중지</button>
+          <button id="checkOnce" type="button" class="secondary">즉시 1회 화면 갱신 및 검사</button>
+          <button id="stopAlarm" type="button" class="danger">알림음 중지</button>
+        </div>
+        <div id="statusPanel" class="status-panel">
+          <div><span>모니터링</span><strong id="runningStatus">정지</strong></div>
+          <div><span>마지막 화면 갱신</span><strong id="lastRefreshAt">-</strong></div>
+          <div><span>다음 갱신까지</span><strong id="nextCheckIn">-</strong></div>
+          <div><span>현재 설정 간격</span><strong id="intervalStatus">30초</strong></div>
+          <div><span>마지막 열차 수</span><strong id="trainCount">0개</strong></div>
+          <div><span>잔여석 발견</span><strong id="availabilityStatus">아니오</strong></div>
+          <div><span>마지막 요약</span><strong id="lastSummary">아직 검사 전입니다.</strong></div>
+          <div><span>오류 메시지</span><strong id="errorMessage">-</strong></div>
           <h2>제어 영역</h2>
           <p>시간이 되면 알림만 울리는 것이 아니라, 서버가 실제 KORAIL 조회를 수행한 뒤 잔여석이 있을 때만 알립니다.</p>
         </div>
@@ -83,11 +140,29 @@
       <section id="alertPanel" class="alert-panel hidden" aria-live="assertive">
         <h2>잔여석 발견!</h2>
         <div id="alertDetails"></div>
+        <p>자동 예매는 하지 않습니다. 연결된 KORAIL 화면에서 사용자가 직접 예약/결제를 진행하세요.</p>
         <p>자동 예매는 하지 않습니다. KORAIL 사이트 또는 코레일톡에서 사용자가 직접 예약/결제하세요.</p>
       </section>
 
       <section aria-label="결과 표시 영역">
         <div class="section-heading">
+          <h2>3. 현재 화면에서 읽은 열차 목록</h2>
+          <p>이 표는 KORAIL 서버 응답을 직접 파싱한 것이 아니라, 연결된 브라우저 화면 DOM에서 읽은 텍스트입니다.</p>
+        </div>
+        <div id="results" class="result-card"></div>
+      </section>
+
+      <section class="help" aria-label="사용 방법">
+        <h2>사용 방법</h2>
+        <ol>
+          <li><code>npm run dev</code>를 실행하고 <code>http://localhost:3001</code>에 접속합니다.</li>
+          <li><strong>브라우저 열기</strong>를 누른 뒤, 열린 브라우저 주소창에서 KORAIL 예매 사이트에 직접 접속합니다.</li>
+          <li>사용자가 직접 로그인하고 원하는 날짜·구간·승객 조건을 입력해 열차 목록 화면까지 이동합니다.</li>
+          <li><strong>현재 코레일 화면 연결</strong>을 누릅니다.</li>
+          <li><strong>즉시 1회 화면 갱신 및 검사</strong>로 화면 DOM 읽기가 되는지 확인합니다.</li>
+          <li><strong>모니터링 시작</strong>을 누르면 보수적인 간격으로 현재 화면을 갱신하고 잔여석을 검사합니다.</li>
+          <li>잔여석 발견 알림이 뜨면 사용자가 직접 KORAIL 화면에서 예매합니다.</li>
+        </ol>
           <h2>결과 표시 영역</h2>
           <p>조건별 마지막 조회 시각, 열차 목록, 좌석 상태, 오류 메시지를 따로 표시합니다.</p>
         </div>

@@ -1,3 +1,9 @@
+const serverStatusEl = document.querySelector('#serverStatus');
+const browserStatusEl = document.querySelector('#browserStatus');
+const currentTimeEl = document.querySelector('#currentTime');
+const intervalInput = document.querySelector('#intervalSeconds');
+const openBrowserButton = document.querySelector('#openBrowser');
+const attachBrowserButton = document.querySelector('#attachBrowser');
 const DEFAULT_CONDITIONS = [
   {
     id: 'gwangmyeong-busan',
@@ -34,6 +40,20 @@ const checkOnceButton = document.querySelector('#checkOnce');
 const stopAlarmButton = document.querySelector('#stopAlarm');
 const notifyButton = document.querySelector('#notifyButton');
 const runningStatusEl = document.querySelector('#runningStatus');
+const lastRefreshAtEl = document.querySelector('#lastRefreshAt');
+const nextCheckInEl = document.querySelector('#nextCheckIn');
+const intervalStatusEl = document.querySelector('#intervalStatus');
+const trainCountEl = document.querySelector('#trainCount');
+const availabilityStatusEl = document.querySelector('#availabilityStatus');
+const lastSummaryEl = document.querySelector('#lastSummary');
+const errorMessageEl = document.querySelector('#errorMessage');
+const alertPanel = document.querySelector('#alertPanel');
+const alertDetails = document.querySelector('#alertDetails');
+const resultsEl = document.querySelector('#results');
+
+let alarmTimer = null;
+let alarmMuted = false;
+let audioContext = null;
 const lastCheckedAtEl = document.querySelector('#lastCheckedAt');
 const nextCheckInEl = document.querySelector('#nextCheckIn');
 const intervalStatusEl = document.querySelector('#intervalStatus');
@@ -66,6 +86,10 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+function validateInterval() {
+  const intervalSeconds = Number(intervalInput.value);
+  if (!Number.isFinite(intervalSeconds) || intervalSeconds < 20) {
+    throw new Error('갱신 간격은 20초 이상이어야 합니다. 더 짧은 반복 조회는 허용하지 않습니다.');
 function renderConditionInputs() {
   conditionsEl.innerHTML = DEFAULT_CONDITIONS.map((condition, index) => `
     <article class="condition-card" data-condition-index="${index}">
@@ -215,11 +239,13 @@ function showNotification(title, body) {
 }
 
 function seatClass(status) {
+  return status === 'available' ? 'available' : status === 'soldout' ? 'soldout' : 'muted';
   return status && status.includes('available') ? 'available' : status === 'soldout' ? 'soldout' : 'muted';
 }
 
 function renderTrainRows(trains) {
   if (!trains || trains.length === 0) {
+    return '<p class="empty">현재 브라우저 화면에서 KTX 열차 목록을 읽지 못했습니다.</p>';
     return '<p class="empty">대상 시간대의 KTX 열차를 찾지 못했습니다.</p>';
   }
 
@@ -240,6 +266,15 @@ function renderTrainRows(trains) {
         </thead>
         <tbody>
           ${trains.map((train) => `
+            <tr class="${train.available ? 'detected' : ''}">
+              <td>${escapeHtml(train.trainNo || 'KTX')}</td>
+              <td>${escapeHtml(train.departureTime || '-')}</td>
+              <td>${escapeHtml(train.arrivalTime || '-')}</td>
+              <td class="${seatClass(train.standardSeatStatus)}">${escapeHtml(train.standardSeatText || train.standardSeatStatus)}</td>
+              <td class="${seatClass(train.firstClassStatus)}">${escapeHtml(train.firstClassText || train.firstClassStatus)}</td>
+              <td class="${seatClass(train.standingStatus)}">${escapeHtml(train.standingText || train.standingStatus)}</td>
+              <td class="${seatClass(train.freeSeatStatus)}">${escapeHtml(train.freeSeatText || train.freeSeatStatus)}</td>
+              <td>${train.available ? '<strong>잔여석 후보</strong>' : '알림 없음'}</td>
             <tr class="${train.detected ? 'detected' : ''}">
               <td>${escapeHtml(train.trainNo || train.trainType || 'KTX')}</td>
               <td>${escapeHtml(train.departureTime || '-')}</td>
@@ -257,6 +292,39 @@ function renderTrainRows(trains) {
   `;
 }
 
+function renderResults(state) {
+  const result = state.lastResult || {};
+  resultsEl.innerHTML = `
+    <dl>
+      <div><dt>읽은 페이지</dt><dd>${escapeHtml(result.pageTitle || '-')}</dd></div>
+      <div><dt>페이지 주소</dt><dd>${escapeHtml(result.pageUrl || state.browser?.activeUrl || '-')}</dd></div>
+      <div><dt>화면 갱신 방식</dt><dd>${escapeHtml(result.actionMessage || '-')}</dd></div>
+      <div><dt>조회 결과</dt><dd>${escapeHtml(result.summary || '아직 검사 전입니다.')}</dd></div>
+    </dl>
+    ${renderTrainRows(state.trains || [])}
+  `;
+}
+
+function renderAlert(state) {
+  const available = state.availableTrains || [];
+  if (available.length === 0) {
+    alertPanel.classList.add('hidden');
+    alarmMuted = false;
+    return;
+  }
+
+  alertDetails.innerHTML = available.map((train) => `
+    <div class="alert-item">
+      <strong>${escapeHtml(train.trainNo || 'KTX')}</strong>
+      <span>${escapeHtml(train.departureTime || '-')} 출발 / ${escapeHtml(train.arrivalTime || '-')} 도착</span>
+      <span>${escapeHtml([train.standardSeatText, train.firstClassText, train.standingText, train.freeSeatText].filter(Boolean).join(' · '))}</span>
+    </div>
+  `).join('');
+  alertPanel.classList.remove('hidden');
+  if (!alarmMuted) {
+    startAlarm();
+  }
+  showNotification('KTX 잔여석 발견', `${available.length}개 열차에서 화면상 잔여석 후보를 발견했습니다.`);
 function conditionLabel(conditionId) {
   return DEFAULT_CONDITIONS.find((condition) => condition.id === conditionId)?.name || conditionId;
 }
@@ -306,6 +374,17 @@ function renderAlert(state) {
 function renderState(state) {
   latestState = state;
   serverStatusEl.textContent = '정상';
+  browserStatusEl.textContent = state.browser?.connected
+    ? (state.browser.isKorailPage ? 'KORAIL 화면 연결' : '브라우저 연결')
+    : '미연결';
+  runningStatusEl.textContent = state.running ? '실행 중' : '정지';
+  lastRefreshAtEl.textContent = formatDateTime(state.lastScreenRefreshAt || state.lastCheckedAt);
+  nextCheckInEl.textContent = state.nextCheckInSeconds === null ? '-' : `${state.nextCheckInSeconds}초`;
+  intervalStatusEl.textContent = `${state.intervalSeconds || intervalInput.value}초`;
+  trainCountEl.textContent = `${(state.trains || []).length}개`;
+  availabilityStatusEl.textContent = state.availableTrains && state.availableTrains.length > 0 ? '예' : '아니오';
+  lastSummaryEl.textContent = state.lastResult?.summary || '아직 검사 전입니다.';
+  errorMessageEl.textContent = state.error || state.lastResult?.error || '-';
   runningStatusEl.textContent = state.running ? '실행 중' : '정지';
   lastCheckedAtEl.textContent = formatDateTime(state.lastCheckedAt);
   nextCheckInEl.textContent = state.nextCheckInSeconds === null ? '-' : `${state.nextCheckInSeconds}초`;
@@ -322,6 +401,7 @@ async function refreshStatus() {
     renderState(state);
   } catch (error) {
     serverStatusEl.textContent = '오류';
+    errorMessageEl.textContent = error.message;
     lastSummaryEl.textContent = error.message;
   }
 }
@@ -337,6 +417,18 @@ async function runAction(action) {
   }
 }
 
+openBrowserButton.addEventListener('click', () => runAction(async () => {
+  await api('/api/browser/open', { method: 'POST', body: {} });
+}));
+
+attachBrowserButton.addEventListener('click', () => runAction(async () => {
+  await api('/api/browser/attach', { method: 'POST', body: {} });
+}));
+
+startButton.addEventListener('click', () => runAction(async () => {
+  await api('/api/monitor/start', {
+    method: 'POST',
+    body: { intervalSeconds: validateInterval() }
 startButton.addEventListener('click', () => runAction(async () => {
   await api('/api/monitor/start', {
     method: 'POST',
@@ -352,6 +444,14 @@ stopButton.addEventListener('click', () => runAction(async () => {
 }));
 
 checkOnceButton.addEventListener('click', () => runAction(async () => {
+  await api('/api/check-screen-once', { method: 'POST', body: { refresh: true } });
+}));
+
+stopAlarmButton.addEventListener('click', () => runAction(async () => {
+  alarmMuted = true;
+  stopAlarm();
+  await api('/api/alarm/stop', { method: 'POST', body: {} });
+}));
   await api('/api/check-once', {
     method: 'POST',
     body: { conditions: readConditions() }
@@ -506,6 +606,8 @@ window.setInterval(() => {
   }
 }, 1000);
 
+refreshStatus();
+window.setInterval(refreshStatus, 5000);
 renderConditionInputs();
 refreshStatus();
 statusTimer = window.setInterval(refreshStatus, 5000);

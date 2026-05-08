@@ -5,6 +5,10 @@ const {
   publicState,
   startMonitor,
   stopMonitor,
+  checkScreenOnce,
+  openMonitoringBrowser,
+  attachBrowserPage,
+  stopAlarm
   checkOnce
 } = require('./src/monitor');
 
@@ -83,6 +87,21 @@ async function handleApi(request, response, pathname) {
       return;
     }
 
+    if (request.method === 'POST' && pathname === '/api/browser/open') {
+      const result = await openMonitoringBrowser();
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === 'POST' && pathname === '/api/browser/attach') {
+      const result = await attachBrowserPage();
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === 'POST' && pathname === '/api/check-screen-once') {
+      const payload = await readJsonBody(request);
+      const result = await checkScreenOnce({ refresh: payload.refresh !== false });
     if (request.method === 'POST' && pathname === '/api/check-once') {
       const payload = await readJsonBody(request);
       const result = await checkOnce(payload.conditions || payload.condition || payload);
@@ -90,6 +109,14 @@ async function handleApi(request, response, pathname) {
       return;
     }
 
+    if (request.method === 'POST' && pathname === '/api/alarm/stop') {
+      sendJson(response, 200, stopAlarm());
+      return;
+    }
+
+    if (request.method === 'POST' && pathname === '/api/monitor/start') {
+      const payload = await readJsonBody(request);
+      const state = await startMonitor({
     if (request.method === 'POST' && pathname === '/api/monitor/start') {
       const payload = await readJsonBody(request);
       const state = await startMonitor({
@@ -143,6 +170,8 @@ const server = http.createServer((request, response) => {
 });
 
 server.listen(PORT, () => {
+  console.log(`KTX 브라우저 화면 기반 잔여석 모니터링 알림판이 실행 중입니다: http://localhost:${PORT}`);
+  console.log('KORAIL 서버 직접 호출 없이 연결된 브라우저 화면만 갱신하고 읽습니다.');
   console.log(`KTX 잔여석 모니터링 알림판이 실행 중입니다: http://localhost:${PORT}`);
   console.log('자동 로그인/예매/결제 없이 잔여석 조회와 알림까지만 수행합니다.');
   console.log(`KTX 빈자리 확인 도우미가 실행 중입니다: http://localhost:${PORT}`);
